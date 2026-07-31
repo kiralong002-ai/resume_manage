@@ -26,8 +26,5 @@ This is a serverless, browser-native web application designed to automatically s
 * **前端 (Frontend)**: HTML5, CSS3, Vanilla JavaScript
 * **文档解析 (Document Parsing)**: PDF.js, Marked.js
 
-## 👩‍💻 关于作者 (About the Author)
-目前就读于南洋理工大学 (NTU) 信号处理与机器学习 (Signal Processing and Machine Learning, SPML) 方向的硕士研究生，致力于未来在科研导向的博士项目中继续深造。本项目源于日常学术研究和项目开发中对高效、安全的信息管理工具的真实需求。
-
 ## 📄 开源协议 (License)
 MIT License
