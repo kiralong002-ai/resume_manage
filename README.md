@@ -9,10 +9,10 @@ This is a serverless, browser-native web application designed to automatically s
 核心设计理念是**绝对的数据隐私 (Absolute Data Privacy)**：无需任何后端服务器 (Backend Server) 或数据库 (Database)，所有敏感的简历数据和应用编程接口密钥 (Application Programming Interface Key, API Key) 均通过本地存储 (Local Storage) 保存在用户设备上。
 
 ## 核心特性 (Core Features)
-* ** 多模型兼容 (Multi-Model Compatibility)**: 无缝对接 DeepSeek、OpenAI 或任何兼容官方数据格式的自定义接口，通过跨域资源共享 (Cross-Origin Resource Sharing, CORS) 直接发起调用。
-* ** 前端朴素检索增强生成 (Frontend Naive Retrieval-Augmented Generation, RAG)**: 无需沉重的向量数据库 (Vector Database)，在浏览器内存中通过原生 JavaScript 实现极简检索引擎，完美解决超长学术文献（如毕业论文）带来的中间丢失 (Lost in the Middle) 效应。
-* ** 智能数据管道 (Smart Data Pipeline)**: 针对长文本采用滑动窗口切分 (Sliding Window Chunking) 与词频打分 (Term Frequency Scoring) 机制，实现精准的 Top-K 召回 (Top-K Retrieval)。
-* ** 现代交互体验 (Modern UX/UI)**: 包含拖拽上传区 (Drag & Drop Zone)、局部加载状态 (Localized Loading State) 以及原生折叠面板，排版精美且符合专业简历规范。
+* 多模型兼容 (Multi-Model Compatibility): 无缝对接 DeepSeek、OpenAI 或任何兼容官方数据格式的自定义接口，通过跨域资源共享 (Cross-Origin Resource Sharing, CORS) 直接发起调用。
+* 前端朴素检索增强生成 (Frontend Naive Retrieval-Augmented Generation, RAG): 无需沉重的向量数据库 (Vector Database)，在浏览器内存中通过原生 JavaScript 实现极简检索引擎，完美解决超长学术文献（如毕业论文）带来的中间丢失 (Lost in the Middle) 效应。
+* 智能数据管道 (Smart Data Pipeline): 针对长文本采用滑动窗口切分 (Sliding Window Chunking) 与词频打分 (Term Frequency Scoring) 机制，实现精准的 Top-K 召回 (Top-K Retrieval)。
+* 现代交互体验 (Modern UX/UI): 包含拖拽上传区 (Drag & Drop Zone)、局部加载状态 (Localized Loading State) 以及原生折叠面板，排版精美且符合专业简历规范。
 
 ##  快速开始 (Quick Start)
 本项目追求极致的极客体验，**零环境配置 (Zero Environment Configuration)**。
