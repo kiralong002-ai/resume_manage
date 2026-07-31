@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 简历与图谱管理器 (纯本地版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+        :root {
+            --sidebar-bg: #f1f5f9;
+            --main-bg: #ffffff;
+            --primary-color: #0284c7; 
+            --primary-hover: #0369a1;
+            --text-color: #334155;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --danger-color: #ef4444;
+        }
+        
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 380px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 25px 20px;
+            overflow-y: auto;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset -5px 0 15px rgba(0,0,0,0.01);
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 50px 80px; 
+            overflow-y: auto;
+            box-sizing: border-box;
+            background-color: var(--main-bg);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .section-header h2, .section-header h3 { 
+            margin: 0; 
+            color: #1e293b; 
+        }
+        
+        .icon-btn {
+            width: auto;
+            padding: 6px 10px;
+            background: transparent;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 6px;
+            margin: 0;
+            transition: background-color 0.2s;
+        }
+        .icon-btn:hover { background-color: #e2e8f0; }
+        
+        .divider { border-bottom: 1px solid var(--border-color); margin: 20px 0; }
+        
+        input[type="text"], input[type="password"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            background-color: #fff;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        #manualText { resize: vertical; min-height: 120px; }
+        
+        .drop-zone {
+            border: 2px dashed #94a3b8;
+            border-radius: 6px;
+            padding: 20px 10px;
+            text-align: center;
+            color: #64748b;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary-color);
+            background-color: #e0f2fe;
+            color: var(--primary-color);
+        }
+        .drop-zone.has-files {
+            border-style: solid;
+            background-color: #f0fdf4;
+            border-color: #22c55e;
+            color: #166534;
+        }
+        
+        button:not(.icon-btn) {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 10px;
+            transition: background-color 0.2s;
+        }
+        button:not(.icon-btn):hover { background-color: var(--primary-hover); }
+        button.danger { background-color: var(--danger-color); opacity: 0.9; }
+        button.danger:hover { opacity: 1; }
+        
+        button:disabled, input:disabled {
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+            background-color: #94a3b8 !important;
+        }
+        
+        details.material-card {
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            border-radius: 6px;
+            background: var(--card-bg);
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        details.material-card summary {
+            padding: 12px;
+            background-color: var(--card-bg);
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+            font-size: 0.95em;
+        }
+        details.material-card summary:hover { background-color: #f8fafc; }
+        .material-content {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            background-color: #fafaf9;
+        }
+        
+        .chat-container {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            overflow-y: auto;
+            background: var(--card-bg);
+            margin-bottom: 10px;
+            min-height: 250px;
+        }
+        .message { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; font-size: 0.95em; line-height: 1.4; }
+        .message.user { background-color: #e0f2fe; text-align: right; color: #0369a1; }
+        .message.assistant { background-color: #f1f5f9; text-align: left; color: #334155; }
+        .typing-indicator {
+            font-style: italic;
+            color: #64748b !important;
+            background-color: transparent !important;
+            border: 1px dashed #cbd5e1;
+        }
+        
+        #resumeDisplay {
+            transition: opacity 0.3s ease;
+            line-height: 1.6;
+            font-size: 1.05em;
+            color: #334155;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        #resumeDisplay h1 {
+            text-align: left; 
+            color: #0f172a;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 30px;
+            font-size: 1.7em; 
+        }
+        #resumeDisplay h2 {
+            color: var(--primary-hover);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 6px;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        #resumeDisplay h3 {
+            color: #1e293b;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            font-size: 1.15em;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 10px;
+            display: flex;
+            justify-content: space-between; 
+        }
+        #resumeDisplay p { margin-top: 0; margin-bottom: 12px; }
+        #resumeDisplay ul { padding-left: 20px; margin-bottom: 15px; }
+        #resumeDisplay li { margin-bottom: 6px; }
+        #resumeDisplay strong { color: #0f172a; font-weight: 600; }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="section-header">
+            <h2>⚙️ 设置与授权</h2>
+            <button class="icon-btn" onclick="clearAllCache()" title="清除所有本地缓存与API信息">🗑️</button>
+        </div>
+        
+        <label>🌐 选择大模型:</label>
+        <select id="apiProvider" onchange="handleProviderChange()">
+            <option value="deepseek">DeepSeek (性价比推荐)</option>
+            <option value="openai">OpenAI (GPT-4o)</option>
+            <option value="custom">⚙️ 自定义节点 (Custom Endpoint)</option>
+        </select>
+        
+        <div id="customSettings" class="hidden">
+            <label>🔗 完整请求地址 (URL):</label>
+            <input type="text" id="customUrl" placeholder="如: https://api.xxx.com/v1/chat/completions" onchange="saveConfig()">
+            <label>🤖 模型名称:</label>
+            <input type="text" id="customModel" placeholder="如: qwen-max" onchange="saveConfig()">
+        </div>
+
+        <label>🔑 API Key:</label>
+        <input type="password" id="apiKey" placeholder="在此粘贴你的密钥..." onchange="saveConfig()">
+        <label>👤 你的名字:</label>
+        <input type="text" id="userName" value="张三" onchange="saveConfig()">
+        
+        <div class="divider"></div>
+        
+        <h3>📥 添加新经历</h3>
+        
+        <div class="drop-zone" id="dropZone">
+            <p id="dropZoneText">📄 点击选择文件，或直接把多个文件拖拽到这里...</p>
+            <input type="file" id="fileUpload" accept=".txt,.pdf" multiple class="hidden">
+        </div>
+        
+        <textarea id="manualText" rows="4" placeholder="在此粘贴补充文本，右下角可拖拽放大..."></textarea>
+        <button id="extractBtn" onclick="processInputs()">➕ 确认提取并生成简历</button>
+        
+        <div class="divider"></div>
+        
+        <h3>📁 已存文件/文本</h3>
+        <div id="materialsList"></div>
+
+        <div class="divider"></div>
+
+        <div class="section-header">
+            <h3>💡 细节回忆助手</h3>
+            <button class="icon-btn" onclick="clearChat()" title="清空历史提问记录">🗑️</button>
+        </div>
+        
+        <input type="text" id="chatInput" placeholder="按回车发送问题..." onkeypress="handleChatEnter(event)">
+        <div class="chat-container" id="chatHistory"></div>
+    </div>
+
+    <div class="main-content">
+        <div id="resumeDisplay">👈 请在左侧配置 API 并在下方添加你的经历。</div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        let state = {
+            materials: [],
+            resumeMarkdown: "",
+            kgContext: "",
+            rawTextPool: "",
+            chatHistory: []
+        };
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileUpload');
+        const dropZoneText = document.getElementById('dropZoneText');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+            dropZoneText.innerText = "放开鼠标以上传 (Release to Drop)...";
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+            updateDropZoneText();
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files; 
+                updateDropZoneText();
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            updateDropZoneText();
+        });
+
+        function updateDropZoneText() {
+            if (fileInput.files.length > 0) {
+                dropZone.classList.add('has-files');
+                dropZoneText.innerText = `✅ 已选择 ${fileInput.files.length} 个文件，准备提取！`;
+            } else {
+                dropZone.classList.remove('has-files');
+                dropZoneText.innerText = "📄 点击选择文件，或直接把多个文件拖拽到这里...";
+            }
+        }
+
+        function clearAllCache() {
+            if (confirm("⚠️ 警告：这将会彻底清除当前浏览器中保存的所有 API 密钥、经历文件、简历和聊天记录。\n\n你确定要恢复出厂设置吗？")) {
+                localStorage.clear(); 
+                
+                document.getElementById('apiProvider').value = 'deepseek';
+                document.getElementById('customUrl').value = '';
+                document.getElementById('customModel').value = '';
+                document.getElementById('apiKey').value = '';
+                document.getElementById('userName').value = '张三';
+                
+                state = { materials: [], resumeMarkdown: "", kgContext: "", rawTextPool: "", chatHistory: [] };
+                handleProviderChange();
+                renderMaterials();
+                renderResume();
+                renderChat();
+                
+                alert("清理完成！所有本地数据已抹除。");
+            }
+        }
+
+        function handleProviderChange() {
+            const provider = document.getElementById('apiProvider').value;
+            const customPanel = document.getElementById('customSettings');
+            if (provider === 'custom') {
+                customPanel.classList.remove('hidden');
+            } else {
+                customPanel.classList.add('hidden');
+            }
+            saveConfig();
+        }
+
+        function saveConfig() {
+            localStorage.setItem('resume_apiProvider', document.getElementById('apiProvider').value);
+            localStorage.setItem('resume_customUrl', document.getElementById('customUrl').value);
+            localStorage.setItem('resume_customModel', document.getElementById('customModel').value);
+            localStorage.setItem('resume_apiKey', document.getElementById('apiKey').value);
+            localStorage.setItem('resume_userName', document.getElementById('userName').value);
+            loadState(); 
+        }
+
+        function loadConfig() {
+            const provider = localStorage.getItem('resume_apiProvider') || 'deepseek';
+            document.getElementById('apiProvider').value = provider;
+            document.getElementById('customUrl').value = localStorage.getItem('resume_customUrl') || '';
+            document.getElementById('customModel').value = localStorage.getItem('resume_customModel') || '';
+            document.getElementById('apiKey').value = localStorage.getItem('resume_apiKey') || '';
+            document.getElementById('userName').value = localStorage.getItem('resume_userName') || '张三';
+            handleProviderChange();
+        }
+
+        function getSafeFilename(name) {
+            return "resume_data_" + name.replace(/[\\/*?:"<>|]/g, "").trim();
+        }
+
+        function saveState() {
+            const userName = document.getElementById('userName').value;
+            localStorage.setItem(getSafeFilename(userName), JSON.stringify(state));
+            renderMaterials();
+            renderResume();
+            renderChat();
+        }
+
+        function loadState() {
+            const userName = document.getElementById('userName').value;
+            const saved = localStorage.getItem(getSafeFilename(userName));
+            if (saved) {
+                state = JSON.parse(saved);
+            } else {
+                state = { materials: [], resumeMarkdown: "", kgContext: "", rawTextPool: "", chatHistory: [] };
+            }
+            renderMaterials();
+            renderResume();
+            renderChat();
+        }
+
+        function renderMaterials() {
+            const list = document.getElementById('materialsList');
+            list.innerHTML = "";
+            state.materials.forEach((mat, index) => {
+                const card = document.createElement('details');
+                card.className = "material-card";
+                card.innerHTML = `
+                    <summary>${mat.title}</summary>
+                    <div class="material-content">
+                        <label style="font-size: 0.85em; color: #475569;">修改标题:</label>
+                        <input type="text" value="${mat.title}" onchange="updateMaterial(${index}, 'title', this.value)">
+                        
+                        <label style="font-size: 0.9em; display: block; margin-bottom: 12px; cursor: pointer;">
+                            <input type="checkbox" ${mat.is_single ? 'checked' : ''} onchange="updateMaterial(${index}, 'is_single', this.checked)"> 🧠 强制合并为单一项目
+                        </label>
+                        
+                        <label style="font-size: 0.85em; color: #475569;">详细内容:</label>
+                        <textarea rows="4" style="resize: vertical;" onchange="updateMaterial(${index}, 'content', this.value)">${mat.content}</textarea>
+                        
+                        <button class="danger" onclick="deleteMaterial(${index})" style="padding: 8px; margin-top: 5px;">删除该记录</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function renderResume() {
+            const display = document.getElementById('resumeDisplay');
+            if (state.resumeMarkdown) {
+                display.innerHTML = marked.parse(state.resumeMarkdown);
+            } else {
+                display.innerHTML = "👈 请在左侧配置 API 并在下方添加你的经历。";
+            }
+        }
+
+        function renderChat() {
+            const history = document.getElementById('chatHistory');
+            history.innerHTML = "";
+            state.chatHistory.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.role}`;
+                div.innerText = msg.content;
+                history.appendChild(div);
+            });
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function updateMaterial(index, field, value) {
+            state.materials[index][field] = value;
+            saveState();
+            generateGlobalResume();
+        }
+
+        function deleteMaterial(index) {
+            state.materials.splice(index, 1);
+            saveState();
+            generateGlobalResume();
+        }
+
+        function clearChat() {
+            state.chatHistory = [];
+            saveState();
+            renderChat();
+        }
+
+        async function callAPI(messages, temperature = 0.3) {
+            const apiKey = document.getElementById('apiKey').value;
+            const provider = document.getElementById('apiProvider').value;
+            
+            if (!apiKey) {
+                alert("请先在左侧输入 API Key！");
+                throw new Error("Missing API Key");
+            }
+
+            let endpointUrl = "";
+            let modelName = "";
+
+            if (provider === "deepseek") {
+                endpointUrl = "https://api.deepseek.com/chat/completions";
+                modelName = "deepseek-chat";
+            } else if (provider === "openai") {
+                endpointUrl = "https://api.openai.com/v1/chat/completions";
+                modelName = "gpt-4o";
+            } else if (provider === "custom") {
+                endpointUrl = document.getElementById('customUrl').value.trim();
+                modelName = document.getElementById('customModel').value.trim();
+                if (!endpointUrl || !modelName) {
+                    alert("请填写自定义的接口地址和模型名称！");
+                    throw new Error("Missing Custom Settings");
+                }
+            }
+            
+            const response = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: messages,
+                    temperature: temperature
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                alert(`API 请求失败，请检查网络和 Key: \n${err}`);
+                throw new Error(err);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content.trim();
+        }
+
+        async function extractPdfText(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+            let text = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                text += content.items.map(item => item.str).join(' ') + "\n";
+            }
+            return text;
+        }
+
+        async function processInputs() {
+            const btn = document.getElementById('extractBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = "⏳ 提取与生成中... (Processing...)";
+            btn.disabled = true;
+            
+            try {
+                const manualText = document.getElementById('manualText').value;
+
+                if (fileInput.files.length > 0) {
+                    for (let file of fileInput.files) {
+                        let content = "";
+                        if (file.name.endsWith('.pdf')) {
+                            content = await extractPdfText(file);
+                        } else {
+                            content = await file.text();
+                        }
+                        state.materials.push({ title: `📄 ${file.name}`, content: content, is_single: true });
+                    }
+                }
+
+                if (manualText.trim()) {
+                    const prompt = `请为下面这段项目经历总结一个不超过8个字的精简标题，不要带标点符号：\n\n${manualText.substring(0, 500)}`;
+                    const title = await callAPI([{role: "user", content: prompt}]);
+                    state.materials.push({ title: `✍️ ${title}`, content: manualText, is_single: true });
+                }
+
+                fileInput.value = "";
+                updateDropZoneText(); 
+                document.getElementById('manualText').value = "";
+                
+                saveState();
+                await generateGlobalResume();
+
+            } catch (error) {
+                console.error(error);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function generateGlobalResume() {
+            const display = document.getElementById('resumeDisplay');
+            if (state.materials.length === 0) {
+                state.resumeMarkdown = "";
+                state.kgContext = "";
+                state.rawTextPool = "";
+                renderResume();
+                return;
+            }
+            
+            display.style.opacity = '0.5';
+            const name = document.getElementById('userName').value;
+            
+            let combinedText = "";
+            state.materials.forEach((mat, idx) => {
+                const strategyNote = mat.is_single ? "【处理指令：此素材是一个完整的单一项目，请将内容提炼为1个项目，绝对禁止因不同人员的分工而拆分为多个】" : "【处理指令：请根据内容自动识别，如包含不同项目请合理拆分】";
+                combinedText += `\n--- 【素材 ${idx+1}: ${mat.title}】 ---\n${strategyNote}\n${mat.content}\n`;
+            });
+
+            const prompt = `
+            你是一个顶级的简历架构师。候选人名字：${name}
+            所有历史素材：\n${combinedText}
+            
+            【核心指令】：
+            1. **信息分类与提取 (Information Classification & Extraction)**：仔细扫描素材，如果素材中包含学校名称、学历（如本科、硕士）、毕业论文等学术信息，请务必提取并单独生成 \`## 教育背景\` 模块。提取具体职责和技术，生成 \`## 项目经历\` 模块。
+            2. **素材级动态合并 (Material-level Dynamic Consolidation)**：严格遵守每个素材开头的【处理指令】。
+            3. **精准聚焦个人贡献 (Focus on Personal Contributions)**：提取仅属于 ${name} 的贡献。
+            4. **时间提取与倒序 (Time Extraction & Reverse Chronological Order)**：提取项目时间，在 Markdown 中严格按从新到旧倒序排列。
+            5. **Markdown 层级规范 (Markdown Hierarchical Specifications)**：
+               - 使用单个 '#' 输出候选人姓名，如 \`# 张三\`
+               - 使用 '##' 表示大模块，如 \`## 教育背景\` 或 \`## 项目经历\`
+               - 使用 '###' 表示具体的项目名称，如 \`### 某某系统研发\`
+            
+            必须以 JSON 格式输出，包含以下字段：
+            1. "resume_markdown": 详尽的 Markdown 简历。
+            2. "kg_context": 提取的关键细节，用于 QA 回忆引擎。
+            必须只输出纯 JSON 对象，不要附加 Markdown 代码块标记。
+            `;
+
+            try {
+                const response = await callAPI([{role: "user", content: prompt}], 0.3);
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    state.resumeMarkdown = data.resume_markdown || "";
+                    state.kgContext = data.kg_context || "";
+                    state.rawTextPool = combinedText;
+                    saveState();
+                } else {
+                    alert("未能解析大模型的 JSON 返回数据。");
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                display.style.opacity = '1';
+            }
+        }
+
+        // ==========================================
+        // 核心改动：前端朴素检索引擎 (Frontend Naive Retrieval Engine)
+        // ==========================================
+        function naiveRetrieve(query, text, topK = 3, chunkSize = 800, overlap = 200) {
+            if (!text || text.length < chunkSize) return text;
+
+            // 1. 滑动窗口切分 (Sliding Window Chunking)
+            const chunks = [];
+            for (let i = 0; i < text.length; i += (chunkSize - overlap)) {
+                chunks.push(text.substring(i, i + chunkSize));
+            }
+
+            // 2. 词频打分 (Term Frequency Scoring) 配合 精确匹配加分 (Exact Match Bonus)
+            // 简单去除标点，将查询语句按字切分
+            const cleanQuery = query.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+            const queryChars = Array.from(new Set(cleanQuery.split(''))); 
+
+            const scoredChunks = chunks.map(chunk => {
+                let score = 0;
+                // 按单个字符匹配打分
+                queryChars.forEach(char => {
+                    const matches = chunk.match(new RegExp(char, 'gi'));
+                    if (matches) score += matches.length;
+                });
+                
+                // 完整词汇或短语的精确匹配给予极高权重
+                if (chunk.includes(query)) score += 50; 
+                
+                // 常见相关关键词权重增强
+                if (query.includes("致谢") && chunk.includes("致谢")) score += 30;
+                
+                return { chunk, score };
+            });
+
+            // 3. Top-K 召回 (Top-K Retrieval)
+            scoredChunks.sort((a, b) => b.score - a.score);
+            
+            // 过滤掉完全不相关的块，并截取排名前 K 的块
+            const bestChunks = scoredChunks
+                .filter(item => item.score > 0) 
+                .slice(0, topK)
+                .map(item => item.chunk);
+
+            return bestChunks.length > 0 ? bestChunks.join('\n\n...\n\n') : "无高度相关内容返回。";
+        }
+
+        async function handleChatEnter(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                const question = input.value.trim();
+                if (!question) return;
+                
+                if (!state.kgContext) {
+                    alert("请先上传经历并生成简历！");
+                    return;
+                }
+
+                state.chatHistory.push({ role: "user", content: question });
+                input.value = "";
+                saveState();
+                
+                input.disabled = true;
+                input.placeholder = "⏳ 检索与思考中... (Thinking...)";
+                
+                const history = document.getElementById('chatHistory');
+                const typingDiv = document.createElement('div');
+                typingDiv.className = "message assistant typing-indicator";
+                typingDiv.id = "typingIndicator";
+                typingDiv.innerText = "⏳ 本地文本检索与思考中... (Retrieving & Thinking...)";
+                history.appendChild(typingDiv);
+                history.scrollTop = history.scrollHeight;
+                
+                // 调用本地检索引擎，获取最相关的片段
+                const relevantContext = naiveRetrieve(question, state.rawTextPool);
+
+                // 更新 Prompt，强迫模型基于检索到的精确片段进行回答
+                const prompt = `
+                你是面试辅导助手。请根据以下【核心摘要】及检索到的【相关原文片段】回答。如果未提及请回答“素材中未提及”。
+                
+                【核心摘要】：
+                ${state.kgContext}
+                
+                【相关原文片段】（由本地检索引擎提供）：
+                ${relevantContext}
+                
+                候选人提问：${question}
+                `;
+
+                try {
+                    const answer = await callAPI([{role: "user", content: prompt}], 0.5);
+                    state.chatHistory.push({ role: "assistant", content: answer });
+                    saveState();
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    const indicator = document.getElementById('typingIndicator');
+                    if (indicator) indicator.remove();
+                    
+                    input.disabled = false;
+                    input.placeholder = "按回车发送问题...";
+                    input.focus(); 
+                }
+            }
+        }
+
+        window.onload = () => {
+            loadConfig();
+            loadState();
+        };
+    </script>
+</body>
+</html>
